@@ -14,35 +14,85 @@ const SummaryCard: React.FC<SummaryCardProps> = ({
   cautionPercent, 
   dangerPercent 
 }) => {
+  // Determine overall safety level
+  let safetyLevel = "Unknown";
+  let safetyColor = "bg-gray-500";
+  let safetyTextColor = "text-gray-700";
+  let safetyMessage = "Not enough data to determine safety";
+  
+  if (dangerPercent >= 20) {
+    safetyLevel = "HARMFUL";
+    safetyColor = "bg-red-500";
+    safetyTextColor = "text-red-700";
+    safetyMessage = "Contains significant harmful ingredients";
+  } else if (cautionPercent >= 40 || dangerPercent > 0) {
+    safetyLevel = "USE WITH CAUTION";
+    safetyColor = "bg-yellow-500";
+    safetyTextColor = "text-yellow-700";
+    safetyMessage = "Contains ingredients to use with caution";
+  } else if (safePercent >= 50) {
+    safetyLevel = "GENERALLY SAFE";
+    safetyColor = "bg-green-500";
+    safetyTextColor = "text-green-700";
+    safetyMessage = "Mostly contains safe ingredients";
+  }
+
   return (
-    <div className="bg-gray-50 rounded-lg p-4 mb-6">
-      <div className="sm:flex justify-between items-center">
-        <div className="mb-4 sm:mb-0">
-          <h4 className="font-medium text-gray-700 mb-1">Analysis Summary</h4>
-          <p className="text-sm text-gray-500">{productName}</p>
-        </div>
-        
-        <div className="flex space-x-6">
-          <div className="text-center">
-            <div className="text-2xl font-semibold text-primary">{formatPercentage(safePercent)}</div>
-            <div className="text-xs text-gray-500">Safe</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-semibold text-warning">{formatPercentage(cautionPercent)}</div>
-            <div className="text-xs text-gray-500">Caution</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-semibold text-danger">{formatPercentage(dangerPercent)}</div>
-            <div className="text-xs text-gray-500">Concern</div>
-          </div>
-        </div>
+    <div className="rounded-lg shadow-md overflow-hidden mb-6">
+      <div className={`${safetyColor} px-4 py-3 text-white`}>
+        <h2 className="text-xl font-bold">{productName || 'Food Product'}</h2>
+        <p className="text-sm opacity-90">Ingredients Health Analysis</p>
       </div>
       
-      {/* Mini Chart */}
-      <div className="h-3 bg-gray-200 rounded-full overflow-hidden mt-4">
-        <div className="h-full bg-primary rounded-l-full" style={{ width: `${safePercent}%`, float: 'left' }}></div>
-        <div className="h-full bg-warning" style={{ width: `${cautionPercent}%`, float: 'left' }}></div>
-        <div className="h-full bg-danger rounded-r-full" style={{ width: `${dangerPercent}%`, float: 'left' }}></div>
+      <div className="p-4 bg-white">
+        <div className="flex items-center mb-6">
+          <div className="w-16 h-16 rounded-full flex items-center justify-center border-4 border-current mr-4 flex-shrink-0" 
+               style={{ color: safetyColor }}>
+            <span className="text-xl font-bold">{
+              dangerPercent >= 20 ? '❌' : 
+              cautionPercent >= 40 || dangerPercent > 0 ? '⚠️' : 
+              safePercent >= 50 ? '✓' : '?'
+            }</span>
+          </div>
+          
+          <div>
+            <h3 className={`text-xl font-bold ${safetyTextColor}`}>{safetyLevel}</h3>
+            <p className="text-gray-600">{safetyMessage}</p>
+          </div>
+        </div>
+        
+        {/* Ingredient Breakdown Bars */}
+        <div className="space-y-2">
+          <div>
+            <div className="flex justify-between mb-1">
+              <span className="text-sm font-medium text-green-700">Safe Ingredients</span>
+              <span className="text-sm font-medium text-green-700">{formatPercentage(safePercent)}</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2.5">
+              <div className="bg-green-600 h-2.5 rounded-full" style={{ width: `${safePercent}%` }}></div>
+            </div>
+          </div>
+          
+          <div>
+            <div className="flex justify-between mb-1">
+              <span className="text-sm font-medium text-yellow-700">Caution Ingredients</span>
+              <span className="text-sm font-medium text-yellow-700">{formatPercentage(cautionPercent)}</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2.5">
+              <div className="bg-yellow-400 h-2.5 rounded-full" style={{ width: `${cautionPercent}%` }}></div>
+            </div>
+          </div>
+          
+          <div>
+            <div className="flex justify-between mb-1">
+              <span className="text-sm font-medium text-red-700">Harmful Ingredients</span>
+              <span className="text-sm font-medium text-red-700">{formatPercentage(dangerPercent)}</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2.5">
+              <div className="bg-red-600 h-2.5 rounded-full" style={{ width: `${dangerPercent}%` }}></div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
