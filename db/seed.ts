@@ -7,7 +7,7 @@ async function seed() {
     
     // Common ingredients to seed the database
     const ingredientsData = [
-      // Safe ingredients
+      // Safe ingredients - Whole foods and natural ingredients
       { name: "rolled oats", impact: "✅ Heart-healthy food, high in fiber", category: "safe", description: "Excellent source of complex carbohydrates" },
       { name: "oats", impact: "✅ Heart-healthy food, high in fiber", category: "safe", description: "Good source of complex carbohydrates and nutrients" },
       { name: "almonds", impact: "✅ Good source of healthy fats and protein", category: "safe", description: "Rich in vitamin E and magnesium" },
@@ -23,8 +23,13 @@ async function seed() {
       { name: "garlic", impact: "✅ Has antimicrobial properties", category: "safe", description: "May support immune function" },
       { name: "turmeric", impact: "✅ Contains anti-inflammatory compounds", category: "safe", description: "May have medicinal benefits" },
       { name: "cinnamon", impact: "✅ May help regulate blood sugar", category: "safe", description: "Has antioxidant properties" },
+      { name: "whole grain", impact: "✅ Heart-healthy, supports digestion", category: "safe", description: "Contains more nutrients than refined grains" },
+      { name: "fiber", impact: "✅ Essential for digestive health", category: "safe", description: "Helps maintain healthy blood sugar levels" },
+      { name: "dietary fiber", impact: "✅ Promotes digestive health", category: "safe", description: "Important for overall gut health" },
+      { name: "brown rice", impact: "✅ Good source of fiber and minerals", category: "safe", description: "Contains more nutrients than white rice" },
+      { name: "ginger", impact: "✅ Anti-inflammatory properties", category: "safe", description: "May help with digestion and nausea" },
       
-      // Caution ingredients
+      // Caution ingredients - Use in moderation
       { name: "honey", impact: "⚠️ Natural sugar, use in moderation", category: "caution", description: "Better alternative to refined sugar but still impacts blood sugar" },
       { name: "sunflower oil", impact: "⚠️ High in omega-6, consume in moderation", category: "caution", description: "May promote inflammation if consumed in excess" },
       { name: "canola oil", impact: "⚠️ Refined oil, consume in moderation", category: "caution", description: "Often highly processed" },
@@ -36,18 +41,26 @@ async function seed() {
       { name: "xanthan gum", impact: "⚠️ Common thickener, may cause digestive issues", category: "caution", description: "Can cause bloating in sensitive individuals" },
       { name: "maltodextrin", impact: "⚠️ Processed carbohydrate with high glycemic index", category: "caution", description: "May cause blood sugar spikes" },
       { name: "cane sugar", impact: "⚠️ Less processed than white sugar but still impacts blood sugar", category: "caution", description: "Use sparingly" },
+      { name: "palm oil", impact: "⚠️ High in saturated fat, environmental concerns", category: "caution", description: "Raises LDL cholesterol, linked to deforestation" },
+      { name: "natural sweeteners", impact: "⚠️ Better than refined sugar but still impacts blood sugar", category: "caution", description: "Use in moderation" },
+      { name: "jaggery", impact: "⚠️ Less processed sugar alternative", category: "caution", description: "Contains some minerals but still affects blood sugar" },
       
-      // Danger ingredients
+      // Danger ingredients - Harmful additives and heavily processed ingredients
       { name: "high fructose corn syrup", impact: "❌ Linked to obesity and metabolic syndrome", category: "danger", description: "May contribute to fatty liver disease" },
       { name: "partially hydrogenated oil", impact: "❌ Contains trans fats linked to heart disease", category: "danger", description: "Increases bad cholesterol" },
+      { name: "hydrogenated oil", impact: "❌ Contains trans fats linked to heart disease", category: "danger", description: "Raises LDL cholesterol levels" },
+      { name: "hydrogenated", impact: "❌ Process that creates harmful trans fats", category: "danger", description: "Associated with increased heart disease risk" },
+      { name: "trans fat", impact: "❌ Directly linked to heart disease", category: "danger", description: "Raises bad cholesterol (LDL) while lowering good cholesterol (HDL)" },
       { name: "sodium nitrite", impact: "❌ Preservative linked to cancer risk", category: "danger", description: "Found in processed meats" },
+      { name: "sodium nitrate", impact: "❌ Preservative with potential cancer risk", category: "danger", description: "Used in processed meats, linked to health issues" },
       { name: "artificial flavor", impact: "❌ May contain synthetic chemicals with potential sensitivities", category: "danger", description: "Can trigger allergic reactions in some people" },
       { name: "artificial sweeteners", impact: "❌ May disrupt gut microbiome", category: "danger", description: "Associated with metabolic issues" },
+      { name: "artificial colors", impact: "❌ Linked to behavioral issues and allergies", category: "danger", description: "May cause hypersensitivity reactions" },
       { name: "aspartame", impact: "❌ Controversial sweetener with potential adverse effects", category: "danger", description: "May cause headaches and other symptoms in sensitive individuals" },
       { name: "bha", impact: "❌ Preservative with potential carcinogenic effects", category: "danger", description: "Banned in some countries" },
       { name: "bht", impact: "❌ Preservative with potential endocrine disrupting effects", category: "danger", description: "May affect hormones" },
-      { name: "red 40", impact: "❌ Artificial color linked to hyperactivity", category: "danger", description: "May cause allergic reactions" },
-      { name: "yellow 5", impact: "❌ Artificial color with potential behavioral effects", category: "danger", description: "May trigger sensitivities" },
+      { name: "red 40", impact: "❌ Artificial color linked to hyperactivity", category: "danger", description: "May cause allergic reactions and behavioral issues in children" },
+      { name: "yellow 5", impact: "❌ Artificial color with potential behavioral effects", category: "danger", description: "May trigger sensitivities and hyperactivity" },
       { name: "propylparaben", impact: "❌ Preservative with potential hormone disruption", category: "danger", description: "May mimic estrogen" },
       { name: "msg", impact: "❌ Flavor enhancer that may cause reactions", category: "danger", description: "Can trigger headaches and other symptoms in sensitive individuals" },
       { name: "monosodium glutamate", impact: "❌ Flavor enhancer that may cause reactions", category: "danger", description: "Can trigger headaches and other symptoms in sensitive individuals" },

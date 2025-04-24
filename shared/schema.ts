@@ -52,6 +52,7 @@ export const analysisResultSchema = z.object({
   cautionPercent: z.number(),
   dangerPercent: z.number(),
   productName: z.string().optional(),
+  ocrText: z.string().optional(), // Add OCR text for debugging
 });
 
 export type AnalysisResult = z.infer<typeof analysisResultSchema>;
