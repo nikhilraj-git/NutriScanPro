@@ -28,6 +28,12 @@ async function seed() {
       { name: "dietary fiber", impact: "✅ Promotes digestive health", category: "safe", description: "Important for overall gut health" },
       { name: "brown rice", impact: "✅ Good source of fiber and minerals", category: "safe", description: "Contains more nutrients than white rice" },
       { name: "ginger", impact: "✅ Anti-inflammatory properties", category: "safe", description: "May help with digestion and nausea" },
+      { name: "dried potatoes", impact: "✅ Natural dried food product", category: "safe", description: "Made from real potatoes with minimal processing" },
+      { name: "potatoes", impact: "✅ Natural vegetable, good source of potassium", category: "safe", description: "Contains vitamin C and fiber" },
+      { name: "sea salt", impact: "✅ Less processed than table salt", category: "safe", description: "Contains trace minerals not found in regular salt" },
+      { name: "calcium", impact: "✅ Essential mineral for bone health", category: "safe", description: "Necessary for healthy muscle and nerve function" },
+      { name: "iron", impact: "✅ Essential mineral for blood health", category: "safe", description: "Needed for oxygen transport in the blood" },
+      { name: "potassium", impact: "✅ Essential mineral for heart health", category: "safe", description: "Helps maintain fluid balance and supports nerve function" },
       
       // Caution ingredients - Use in moderation
       { name: "honey", impact: "⚠️ Natural sugar, use in moderation", category: "caution", description: "Better alternative to refined sugar but still impacts blood sugar" },
@@ -44,6 +50,14 @@ async function seed() {
       { name: "palm oil", impact: "⚠️ High in saturated fat, environmental concerns", category: "caution", description: "Raises LDL cholesterol, linked to deforestation" },
       { name: "natural sweeteners", impact: "⚠️ Better than refined sugar but still impacts blood sugar", category: "caution", description: "Use in moderation" },
       { name: "jaggery", impact: "⚠️ Less processed sugar alternative", category: "caution", description: "Contains some minerals but still affects blood sugar" },
+      { name: "corn oil", impact: "⚠️ Refined oil high in omega-6 fatty acids", category: "caution", description: "May contribute to inflammation when consumed in excess" },
+      { name: "corn starch", impact: "⚠️ Highly refined carbohydrate", category: "caution", description: "Minimal nutritional value, high glycemic index" },
+      { name: "dextrose", impact: "⚠️ Simple sugar with high glycemic index", category: "caution", description: "Causes rapid blood sugar spikes" },
+      { name: "annatto", impact: "⚠️ Natural food coloring, may cause reactions in some", category: "caution", description: "Generally safe but can trigger allergic reactions in sensitive individuals" },
+      { name: "annatto extracts", impact: "⚠️ Natural food coloring derived from seeds", category: "caution", description: "May cause allergic reactions in some people" },
+      { name: "soy", impact: "⚠️ Common allergen, may affect hormones", category: "caution", description: "Contains phytoestrogens that may affect hormone balance" },
+      { name: "soy ingredients", impact: "⚠️ Common allergen, consume in moderation", category: "caution", description: "May cause allergic reactions in sensitive individuals" },
+      { name: "vitamin d", impact: "⚠️ Essential in moderation, toxic in excess", category: "caution", description: "Fat-soluble vitamin that can accumulate in the body" },
       
       // Danger ingredients - Harmful additives and heavily processed ingredients
       { name: "high fructose corn syrup", impact: "❌ Linked to obesity and metabolic syndrome", category: "danger", description: "May contribute to fatty liver disease" },

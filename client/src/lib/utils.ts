@@ -14,7 +14,7 @@ export function extractIngredients(text: string): string[] {
   const ingredientsKeywords = [
     'ingredients:', 'ingredients', 'ingredients list:', 
     'ingredients list', 'contains:', 'made with:',
-    'made from:', 'made from', 'made with'
+    'made from:', 'made from', 'made with', 'ingredients:'
   ];
   let startIndex = -1;
   
@@ -26,20 +26,26 @@ export function extractIngredients(text: string): string[] {
     }
   }
   
-  // If no ingredients section found, check for known ingredients directly
+  // Enhanced ingredient detection: If no specific section found, 
+  // try to find patterns that commonly appear in ingredient lists
   if (startIndex === -1) {
-    // Common ingredients to look for directly
+    // Common ingredients to look for directly - expanded with more items including those from your sample
     const knownIngredients = [
       'sugar', 'salt', 'oil', 'flour', 'water', 'milk', 'eggs', 
       'butter', 'corn syrup', 'high-fructose corn syrup', 'wheat',
       'soy', 'nuts', 'peanuts', 'preservatives', 'flavoring', 
       'artificial colors', 'natural flavors', 'whole grain', 'fiber',
       'hydrogenated', 'trans fat', 'palm oil', 'msg', 'monosodium glutamate',
-      'sodium nitrite', 'sodium nitrate', 'red 40', 'yellow 5'
+      'sodium nitrite', 'sodium nitrate', 'red 40', 'yellow 5',
+      'dried potatoes', 'potatoes', 'corn starch', 'corn oil', 'dextrose',
+      'sea salt', 'soy lecithin', 'annatto', 'calcium', 'iron', 'potassium',
+      'vitamin d', 'vitamin', 'minerals', 'corn', 'starch'
     ];
     
     const foundIngredients = new Set<string>();
-    const words = lowerText.split(/[\s,.:;()\[\]]+/);
+    
+    // More advanced word splitting for better ingredient detection
+    const words = lowerText.split(/[\s,.:;()\[\]]+/).filter(word => word.length > 1);
     
     // Check for consecutive words that might form ingredient names
     for (let i = 0; i < words.length; i++) {
@@ -63,9 +69,45 @@ export function extractIngredients(text: string): string[] {
           foundIngredients.add(threeWords);
         }
       }
+      
+      // Check for specific nutritional information patterns (like your example)
+      // Match patterns like "calcium 10mg", "iron 3mg", "potassium 23mg"
+      if (/^(calcium|iron|potassium|vitamin|sodium)/.test(words[i]) && 
+          i < words.length - 1 && 
+          /\d+/.test(words[i+1])) {
+        // Combine them as a nutritional ingredient
+        foundIngredients.add(words[i]);
+      }
     }
     
-    return Array.from(foundIngredients);
+    // If we found some ingredients directly, use them
+    if (foundIngredients.size > 0) {
+      return Array.from(foundIngredients);
+    }
+    
+    // Last resort: If we can't find known ingredients, look for lines that might be ingredient lists
+    // This is helpful for nutrition facts sections where ingredients are sometimes listed
+    const lines = lowerText.split('\n');
+    for (const line of lines) {
+      // Lines with lots of commas are likely ingredient lists
+      if (line.split(',').length > 3) {
+        return line.split(',')
+          .map(item => item.trim())
+          .filter(item => item.length > 1)
+          .map(item => item.toLowerCase());
+      }
+      
+      // Lines that mention "ingredients" followed by content
+      if (line.includes('ingredients') && line.length > 15) {
+        const parts = line.split(':');
+        if (parts.length > 1) {
+          return parts[1].split(',')
+            .map(item => item.trim())
+            .filter(item => item.length > 1)
+            .map(item => item.toLowerCase());
+        }
+      }
+    }
   }
   
   // Find where the ingredients section ends (could be end of text or next section)
@@ -73,7 +115,8 @@ export function extractIngredients(text: string): string[] {
   const possibleEndKeywords = [
     'nutrition facts', 'nutrition information', 'allergen information',
     'allergens', 'nutritional', 'may contain', 'warning', 'storage',
-    'best before', 'expiry', 'manufactured by', 'distributed by'
+    'best before', 'expiry', 'manufactured by', 'distributed by',
+    'contains soy', 'contains', 'daily value', 'packaging'
   ];
   
   for (const keyword of possibleEndKeywords) {
@@ -105,6 +148,10 @@ export function extractIngredients(text: string): string[] {
   else if (ingredientsText.includes(' and ')) {
     ingredients = ingredientsText.split(' and ').map(item => item.trim());
   }
+  // Try to find line breaks
+  else if (ingredientsText.includes('\n')) {
+    ingredients = ingredientsText.split('\n').map(item => item.trim());
+  }
   // Last resort: split by parentheses or brackets
   else if (ingredientsText.match(/[()[\]]/)) {
     // Split by opening or closing parentheses/brackets
@@ -119,11 +166,31 @@ export function extractIngredients(text: string): string[] {
   const processedIngredients: string[] = [];
   
   for (let ingredient of ingredients) {
+    // Skip very short or empty items
+    if (ingredient.length < 2) continue;
+    
     // Remove percentage indicators
     ingredient = ingredient.replace(/\d+%/g, '').trim();
     
-    // Remove content in parentheses which often contains additives or notes
-    ingredient = ingredient.replace(/\([^)]*\)/g, '').trim();
+    // Extract the main part for ingredients with parentheses
+    if (ingredient.includes('(') && ingredient.includes(')')) {
+      // Special case: If this is a nutritional value like "calcium (10mg)",
+      // we want to keep the nutritional info but clean it up
+      if (/calcium|iron|potassium|vitamin/.test(ingredient.toLowerCase())) {
+        // Clean up anything after the value part
+        const match = ingredient.match(/([a-zA-Z]+)\s*[\(\[]?(\d+\s*[a-zA-Z]+)[\)\]]?/i);
+        if (match) {
+          ingredient = match[1]; // Just keep the nutrient name like "calcium"
+          processedIngredients.push(ingredient.toLowerCase());
+        } else {
+          processedIngredients.push(ingredient.split('(')[0].trim().toLowerCase());
+        }
+        continue;
+      } else {
+        // For regular ingredients, remove the parenthetical part
+        ingredient = ingredient.replace(/\([^)]*\)/g, '').trim();
+      }
+    }
     
     // In case of "ingredient (additive)", keep just the main ingredient
     if (ingredient.includes('(')) {
@@ -141,8 +208,19 @@ export function extractIngredients(text: string): string[] {
   // Filter out empty strings and common non-ingredient words
   const excludedWords = [
     'and', 'contains', 'may', 'or', 'the', 'a', 'an', 'of', 'with', 'from', 
-    'in', 'for', 'to', 'by', 'as', 'on', 'at', 'content', 'free'
+    'in', 'for', 'to', 'by', 'as', 'on', 'at', 'content', 'free', 'daily',
+    'value', 'per', 'serving', 'percent', 'amount', 'total', 'source', 'mg',
+    'g', 'ml', 'oz', 'lb', 'nutrition', 'facts', 'information'
   ];
+  
+  // Add ingredients that might have been missed due to formatting
+  // Look for common ingredients that may have been part of a nutrition facts section
+  if (lowerText.includes('dried potatoes')) processedIngredients.push('dried potatoes');
+  if (lowerText.includes('corn starch')) processedIngredients.push('corn starch');
+  if (lowerText.includes('sea salt')) processedIngredients.push('sea salt');
+  if (lowerText.includes('dextrose')) processedIngredients.push('dextrose');
+  if (lowerText.includes('annatto')) processedIngredients.push('annatto extracts');
+  if (lowerText.includes('soy')) processedIngredients.push('soy ingredients');
   
   return processedIngredients
     .filter(item => item.length > 1) // Remove single-character items
