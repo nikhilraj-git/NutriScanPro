@@ -1,9 +1,8 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
 import multer from "multer";
 import Tesseract from "tesseract.js";
-import { sql, eq, like, or } from "drizzle-orm";
+import { sql, eq, like } from "drizzle-orm";
 import { db } from "@db";
 import { ingredients, analysisResultSchema } from "@shared/schema";
 import { extractIngredients, extractProductName } from "@/lib/utils";
@@ -56,10 +55,7 @@ async function findIngredientMatches(ingredientName: string) {
 
   // Check for common harmful ingredients first
   const dangerIngredients = await db.query.ingredients.findMany({
-    where: and([
-      or(variations.map(v => like(ingredients.name, v))),
-      eq(ingredients.category, 'danger')
-    ])
+    where: sql`${ingredients.name} LIKE ${`%${lowerName}%`} AND ${ingredients.category} = 'danger'`
   });
 
   if (dangerIngredients.length > 0) {
@@ -71,10 +67,7 @@ async function findIngredientMatches(ingredientName: string) {
 
   // Then check for caution ingredients
   const cautionIngredients = await db.query.ingredients.findMany({
-    where: and([
-      or(variations.map(v => like(ingredients.name, v))),
-      eq(ingredients.category, 'caution')
-    ])
+    where: sql`${ingredients.name} LIKE ${`%${lowerName}%`} AND ${ingredients.category} = 'caution'`
   });
 
   if (cautionIngredients.length > 0) {
@@ -85,10 +78,7 @@ async function findIngredientMatches(ingredientName: string) {
 
   // Finally check for safe ingredients
   const safeIngredients = await db.query.ingredients.findMany({
-    where: and([
-      or(variations.map(v => like(ingredients.name, v))),
-      eq(ingredients.category, 'safe')
-    ])
+    where: sql`${ingredients.name} LIKE ${`%${lowerName}%`} AND ${ingredients.category} = 'safe'`
   });
 
   if (safeIngredients.length > 0) {
@@ -152,10 +142,10 @@ function checkCommonHarmfulIngredients(ingredient: string) {
   return null;
 }
 
-// Helper function for the WHERE clause since it's needed in two places
-function and(conditions: any[]) {
-  return (table: any, { and }: any) => and(...conditions);
-}
+// Helper function for the WHERE clause since it's needed in two places - now unused since we switched to SQL template literals
+// function and(conditions: any[]) {
+//   return (table: any, { and }: any) => and(...conditions);
+// }
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
