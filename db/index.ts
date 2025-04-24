@@ -12,5 +12,29 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
-export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-export const db = drizzle({ client: pool, schema });
+// Create a pool with error handling
+let dbPool: Pool;
+try {
+  // Try to connect to the database using the provided URL
+  dbPool = new Pool({ 
+    connectionString: process.env.DATABASE_URL,
+    // Add a short connection timeout to fail faster in case of connection issues
+    connectionTimeoutMillis: 5000 
+  });
+  
+  // Add event listener for connection errors
+  dbPool.on('error', (err) => {
+    console.error('Unexpected database error:', err);
+    console.warn('Database connection error. The application will use hardcoded fallback data instead.');
+  });
+} catch (error) {
+  console.error('Failed to create database pool:', error);
+  console.warn('Database connection failed. The application will use hardcoded fallback data instead.');
+  
+  // Create a dummy pool that will trigger errors, forcing the use of fallback data
+  dbPool = {} as Pool;
+}
+
+// Create Drizzle ORM instance with error handling
+export const pool = dbPool;
+export const db = drizzle({ client: dbPool, schema });

@@ -6,6 +6,7 @@ import { sql, eq, like } from "drizzle-orm";
 import { db } from "@db";
 import { ingredients, analysisResultSchema } from "@shared/schema";
 import { extractIngredients, extractProductName } from "@/lib/utils";
+import { findIngredientInFallback, getFallbackCategories } from "./fallback-ingredients";
 
 // Define MulterRequest interface to handle file uploads
 interface MulterRequest extends Request {
@@ -32,138 +33,160 @@ const upload = multer({
 async function findIngredientMatches(ingredientName: string) {
   let searchName = ingredientName.toLowerCase().trim();
   
-  // Step 1: Try exact match first
-  const exactMatch = await db.query.ingredients.findFirst({
-    where: eq(ingredients.name, searchName)
-  });
-
-  if (exactMatch) {
-    return exactMatch;
-  }
-  
-  // Step 2: Clean up the ingredient name (remove numbers, mg, g, etc.)
-  // This helps with nutritional ingredients like "calcium 10mg"
-  const cleanedName = searchName.replace(/\d+\s*([a-z]{1,2}|mg|mcg|iu|%)/g, '').trim();
-  if (cleanedName !== searchName) {
-    // Try matching with the cleaned name
-    const cleanedMatch = await db.query.ingredients.findFirst({
-      where: eq(ingredients.name, cleanedName)
+  try {
+    // Step 1: Try exact match first
+    const exactMatch = await db.query.ingredients.findFirst({
+      where: eq(ingredients.name, searchName)
     });
-    
-    if (cleanedMatch) {
-      return cleanedMatch;
+
+    if (exactMatch) {
+      return exactMatch;
     }
     
-    // If the cleaned name is different, use it for searching
-    searchName = cleanedName;
-  }
-  
-  // Step 3: Handle common ingredient patterns and extract main name
-  // For example, "dried potatoes" -> try both "dried potatoes" and "potatoes"
-  let mainIngredient = searchName;
-  
-  // Extract the core ingredient from compound ingredients
-  if (searchName.includes(' ')) {
-    const parts = searchName.split(' ');
-    // Try the last word as it's often the main ingredient 
-    // (e.g., "sea salt" -> "salt", "corn starch" -> "starch")
-    mainIngredient = parts[parts.length - 1];
-    
-    // Check if the main ingredient alone is in the database
-    if (mainIngredient.length >= 3) {
-      const mainIngredientMatch = await db.query.ingredients.findFirst({
-        where: eq(ingredients.name, mainIngredient)
+    // Step 2: Clean up the ingredient name (remove numbers, mg, g, etc.)
+    // This helps with nutritional ingredients like "calcium 10mg"
+    const cleanedName = searchName.replace(/\d+\s*([a-z]{1,2}|mg|mcg|iu|%)/g, '').trim();
+    if (cleanedName !== searchName) {
+      // Try matching with the cleaned name
+      const cleanedMatch = await db.query.ingredients.findFirst({
+        where: eq(ingredients.name, cleanedName)
       });
       
-      if (mainIngredientMatch) {
-        return mainIngredientMatch;
+      if (cleanedMatch) {
+        return cleanedMatch;
+      }
+      
+      // If the cleaned name is different, use it for searching
+      searchName = cleanedName;
+    }
+    
+    // Step 3: Handle common ingredient patterns and extract main name
+    // For example, "dried potatoes" -> try both "dried potatoes" and "potatoes"
+    let mainIngredient = searchName;
+    
+    // Extract the core ingredient from compound ingredients
+    if (searchName.includes(' ')) {
+      const parts = searchName.split(' ');
+      // Try the last word as it's often the main ingredient 
+      // (e.g., "sea salt" -> "salt", "corn starch" -> "starch")
+      mainIngredient = parts[parts.length - 1];
+      
+      // Check if the main ingredient alone is in the database
+      if (mainIngredient.length >= 3) {
+        const mainIngredientMatch = await db.query.ingredients.findFirst({
+          where: eq(ingredients.name, mainIngredient)
+        });
+        
+        if (mainIngredientMatch) {
+          return mainIngredientMatch;
+        }
       }
     }
-  }
-  
-  // Skip very short ingredients to prevent false positives
-  if (searchName.length < 3) {
-    return null;
-  }
+    
+    // Skip very short ingredients to prevent false positives
+    if (searchName.length < 3) {
+      return null;
+    }
 
-  // Step 4: Handle specific ingredient types (nutrients, additives)
-  // Special case for nutrients
-  if (/^(calcium|iron|potassium|vitamin|sodium)/.test(searchName)) {
-    // Extract just the nutrient name (calcium, iron, etc.)
-    const nutrientRegexMatch = /^(calcium|iron|potassium|vitamin|sodium)/.exec(searchName);
-    if (nutrientRegexMatch) {
-      const extractedNutrientName: string = nutrientRegexMatch[1];
-      const dbNutrientMatch = await db.query.ingredients.findFirst({
-        where: eq(ingredients.name, extractedNutrientName)
-      });
-      
-      if (dbNutrientMatch) {
-        return dbNutrientMatch;
+    // Step 4: Handle specific ingredient types (nutrients, additives)
+    // Special case for nutrients
+    if (/^(calcium|iron|potassium|vitamin|sodium)/.test(searchName)) {
+      // Extract just the nutrient name (calcium, iron, etc.)
+      const nutrientRegexMatch = /^(calcium|iron|potassium|vitamin|sodium)/.exec(searchName);
+      if (nutrientRegexMatch) {
+        const extractedNutrientName: string = nutrientRegexMatch[1];
+        const dbNutrientMatch = await db.query.ingredients.findFirst({
+          where: eq(ingredients.name, extractedNutrientName)
+        });
+        
+        if (dbNutrientMatch) {
+          return dbNutrientMatch;
+        }
       }
     }
-  }
-  
-  // Step 5: Try fuzzy matching in priority order (danger, caution, safe)
-  
-  // Check for common harmful ingredients first
-  const dangerIngredients = await db.query.ingredients.findMany({
-    where: sql`${ingredients.name} LIKE ${`%${searchName}%`} AND ${ingredients.category} = 'danger'`
-  });
-
-  if (dangerIngredients.length > 0) {
-    // Return the closest match by length (closer to original ingredient name)
-    return dangerIngredients.sort((a, b) => 
-      Math.abs(a.name.length - searchName.length) - Math.abs(b.name.length - searchName.length)
-    )[0];
-  }
-
-  // Then check for caution ingredients
-  const cautionIngredients = await db.query.ingredients.findMany({
-    where: sql`${ingredients.name} LIKE ${`%${searchName}%`} AND ${ingredients.category} = 'caution'`
-  });
-
-  if (cautionIngredients.length > 0) {
-    return cautionIngredients.sort((a, b) => 
-      Math.abs(a.name.length - searchName.length) - Math.abs(b.name.length - searchName.length)
-    )[0];
-  }
-
-  // Finally check for safe ingredients
-  const safeIngredients = await db.query.ingredients.findMany({
-    where: sql`${ingredients.name} LIKE ${`%${searchName}%`} AND ${ingredients.category} = 'safe'`
-  });
-
-  if (safeIngredients.length > 0) {
-    return safeIngredients.sort((a, b) => 
-      Math.abs(a.name.length - searchName.length) - Math.abs(b.name.length - searchName.length)
-    )[0];
-  }
-  
-  // Step 6: If we still don't have a match and our ingredient has multiple words,
-  // try matching on each individual word
-  if (searchName.includes(' ')) {
-    const words = searchName.split(' ').filter(word => word.length >= 3);
     
-    for (const word of words) {
-      // Check if this word is an ingredient
-      const wordMatch = await db.query.ingredients.findFirst({
-        where: eq(ingredients.name, word)
-      });
+    // Step 5: Try fuzzy matching in priority order (danger, caution, safe)
+    
+    // Check for common harmful ingredients first
+    const dangerIngredients = await db.query.ingredients.findMany({
+      where: sql`${ingredients.name} LIKE ${`%${searchName}%`} AND ${ingredients.category} = 'danger'`
+    });
+
+    if (dangerIngredients.length > 0) {
+      // Return the closest match by length (closer to original ingredient name)
+      return dangerIngredients.sort((a, b) => 
+        Math.abs(a.name.length - searchName.length) - Math.abs(b.name.length - searchName.length)
+      )[0];
+    }
+
+    // Then check for caution ingredients
+    const cautionIngredients = await db.query.ingredients.findMany({
+      where: sql`${ingredients.name} LIKE ${`%${searchName}%`} AND ${ingredients.category} = 'caution'`
+    });
+
+    if (cautionIngredients.length > 0) {
+      return cautionIngredients.sort((a, b) => 
+        Math.abs(a.name.length - searchName.length) - Math.abs(b.name.length - searchName.length)
+      )[0];
+    }
+
+    // Finally check for safe ingredients
+    const safeIngredients = await db.query.ingredients.findMany({
+      where: sql`${ingredients.name} LIKE ${`%${searchName}%`} AND ${ingredients.category} = 'safe'`
+    });
+
+    if (safeIngredients.length > 0) {
+      return safeIngredients.sort((a, b) => 
+        Math.abs(a.name.length - searchName.length) - Math.abs(b.name.length - searchName.length)
+      )[0];
+    }
+    
+    // Step 6: If we still don't have a match and our ingredient has multiple words,
+    // try matching on each individual word
+    if (searchName.includes(' ')) {
+      const words = searchName.split(' ').filter(word => word.length >= 3);
       
-      if (wordMatch) {
-        return wordMatch;
+      for (const word of words) {
+        // Check if this word is an ingredient
+        const wordMatch = await db.query.ingredients.findFirst({
+          where: eq(ingredients.name, word)
+        });
+        
+        if (wordMatch) {
+          return wordMatch;
+        }
+        
+        // Try fuzzy matching on this word
+        const fuzzyMatches = await db.query.ingredients.findMany({
+          where: sql`${ingredients.name} LIKE ${`%${word}%`}`
+        });
+        
+        if (fuzzyMatches.length > 0) {
+          return fuzzyMatches.sort((a, b) => 
+            Math.abs(a.name.length - word.length) - Math.abs(b.name.length - word.length)
+          )[0];
+        }
       }
-      
-      // Try fuzzy matching on this word
-      const fuzzyMatches = await db.query.ingredients.findMany({
-        where: sql`${ingredients.name} LIKE ${`%${word}%`}`
-      });
-      
-      if (fuzzyMatches.length > 0) {
-        return fuzzyMatches.sort((a, b) => 
-          Math.abs(a.name.length - word.length) - Math.abs(b.name.length - word.length)
-        )[0];
-      }
+    }
+
+  } catch (error) {
+    // If there's a database error, use the fallback ingredient data
+    console.warn("Database error, using fallback ingredient data:", error);
+    
+    // Try to find the ingredient in our fallback data
+    const fallbackResult = findIngredientInFallback(ingredientName);
+    if (fallbackResult) {
+      return fallbackResult;
+    }
+    
+    // Check if it falls into a common category
+    const fallbackCategory = getFallbackCategories(ingredientName);
+    if (fallbackCategory) {
+      return {
+        id: 0, // Use 0 as ID for generated entries
+        name: ingredientName.toLowerCase(),
+        ...fallbackCategory
+      };
     }
   }
 
@@ -431,8 +454,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const allIngredients = await db.query.ingredients.findMany();
       res.status(200).json(allIngredients);
     } catch (error) {
-      console.error('Error fetching ingredients:', error);
-      res.status(500).json({ message: 'Error fetching ingredients' });
+      console.error('Error fetching ingredients from database, using fallback data:', error);
+      
+      // Use the fallback data when database queries fail
+      // We're importing this directly from the fallback file
+      const { fallbackIngredients } = await import('./fallback-ingredients');
+      res.status(200).json(fallbackIngredients);
     }
   });
 
@@ -451,8 +478,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.status(200).json(searchResults);
     } catch (error) {
-      console.error('Error searching ingredients:', error);
-      res.status(500).json({ message: 'Error searching ingredients' });
+      console.error('Error searching ingredients from database, using fallback data:', error);
+      
+      // Search through the fallback data when database queries fail
+      const { fallbackIngredients } = await import('./fallback-ingredients');
+      const searchQuery = (typeof req.query.query === 'string' ? req.query.query : '').toLowerCase();
+      
+      // Filter the fallback ingredients based on the query
+      const filteredResults = fallbackIngredients.filter(ingredient => 
+        ingredient.name.includes(searchQuery)
+      );
+      
+      res.status(200).json(filteredResults);
     }
   });
 
